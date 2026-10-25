@@ -1,0 +1,18 @@
+FCM ULTRA – VERSION APPLICATION (installable, hors-ligne)
+
+CONTENU : index.html (le jeu), manifest.webmanifest + sw.js (installation et mode hors-ligne), icônes.
+
+AVANT TOUT : ta sauvegarde est liée à l'adresse où tu joues. Dans l'ancien jeu, onglet Club/Sauvegarde > « Exporter », copie le code,
+puis dans l'application > « Importer ».
+
+INSTALLER (gratuit, 3 minutes)
+1. Mets le dossier en ligne sur un hébergeur statique gratuit, par exemple :
+   - Netlify Drop (app.netlify.com/drop) : glisse le dossier, tu obtiens un lien https.
+   - ou GitHub Pages / Cloudflare Pages.
+2. Ouvre ce lien https sur ton téléphone ou ton PC.
+3. Android (Chrome) : menu ⋮ > « Installer l'application ».
+   iPhone (Safari) : Partager > « Sur l'écran d'accueil ».
+   PC (Chrome/Edge) : icône d'installation dans la barre d'adresse.
+4. L'icône FCM Ultra apparaît ; le jeu s'ouvre en plein écran, sans navigateur, et marche sans internet.
+
+VRAI FICHIER D'INSTALLATION (APK Android / Windows) : sur pwabuilder.com, colle ton lien https et choisis Android ou Windows.
