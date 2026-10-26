@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FCM Ultra - Saison 4</title>
+    <style>
+        :root {
+            --primary: #ff2a5f;
+            --secondary: #00f0ff;
+            --dark: #0b0f19;
+            --darker: #05070c;
+            --light: #f0f4f8;
+            --card-bg: rgba(18, 24, 38, 0.85);
+            --border: rgba(0, 240, 255, 0.2);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--darker); color: var(--light); min-height: 100vh; overflow-x: hidden; }
+        
+        /* SCREENS */
+        .screen { display: none; width: 100vw; height: 100vh; position: fixed; top: 0; left: 0; z-index: 10; background: radial-gradient(circle at center, #1a1f35 0%, var(--darker) 100%); overflow-y: auto; }
+        .screen.active { display: flex; flex-direction: column; }
+
+        /* INTRO / WELCOME SCREEN */
+        #welcome-screen { justify-content: center; align-items: center; text-align: center; background: url('https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=1920') no-repeat center center/cover; position: relative; }
+        #welcome-screen::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5, 7, 12, 0.85); z-index: 1; }
+        .welcome-content { position: relative; z-index: 2; max-width: 600px; padding: 40px; border: 2px solid var(--secondary); border-radius: 16px; background: rgba(11, 15, 25, 0.9); box-shadow: 0 0 30px rgba(0, 240, 255, 0.3); }
+        .game-title { font-size: 3rem; font-weight: 900; background: linear-gradient(45deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; }
+        .game-subtitle { color: #8a99ad; margin-bottom: 30px; font-size: 1.1rem; }
+        
+        .btn { background: linear-gradient(135deg, var(--primary), #d90429); color: white; border: none; padding: 14px 28px; font-size: 1.1rem; font-weight: bold; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(255, 42, 95, 0.4); margin: 10px; width: 100%; max-width: 300px; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 42, 95, 0.6); }
+        .btn-secondary { background: linear-gradient(135deg, #0077b6, var(--secondary)); box-shadow: 0 4px 15px rgba(0, 240, 255, 0.3); }
+
+        /* CONFIG SCREEN */
+        #config-screen { justify-content: center; align-items: center; padding: 20px; }
+        .config-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 30px; width: 100%; max-width: 500px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+        .form-group { margin-bottom: 20px; text-align: left; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: bold; color: var(--secondary); }
+        .form-control { width: 100%; padding: 12px; background: rgba(5, 7, 12, 0.6); border: 1px solid var(--border); border-radius: 6px; color: white; font-size: 1rem; }
+
+        /* MAIN DASHBOARD HUD */
+        #main-game { display: none; flex-direction: column; height: 100vh; background: var(--dark); }
+        .hud-top { display: flex; justify-content: space-between; align-items: center; padding: 15px 30px; background: rgba(18, 24, 38, 0.95); border-bottom: 2px solid var(--border); }
+        .hud-stats { display: flex; gap: 20px; font-size: 0.95rem; }
+        .hud-stat-item { background: rgba(0,0,0,0.3); padding: 6px 14px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); }
+
+        .game-body { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 240px; background: rgba(11, 15, 25, 0.98); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px 0; }
+        .nav-item { padding: 14px 24px; color: #8a99ad; text-decoration: none; font-weight: 600; transition: all 0.2s; border-left: 4px solid transparent; cursor: pointer; display: flex; align-items: center; gap: 12px; }
+        .nav-item:hover, .nav-item.active { background: rgba(0, 240, 255, 0.08); color: var(--secondary); border-left-color: var(--secondary); }
+
+        .content-area { flex: 1; padding: 30px; overflow-y: auto; background: var(--darker); }
+        .panel { display: none; }
+        .panel.active { display: block; }
+
+        /* CARDS & TABLES */
+        .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 0.95rem; }
+        th { color: var(--secondary); font-weight: 600; }
+
+        /* MATCH SIMULATOR OVERLAY */
+        #match-engine { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #070a12; z-index: 100; display: none; flex-direction: column; justify-content: space-between; padding: 30px; }
+        .match-header { display: flex; justify-content: space-between; align-items: center; background: rgba(18, 24, 38, 0.9); padding: 20px 40px; border-radius: 12px; border: 1px solid var(--border); }
+        .match-scoreboard { font-size: 2.5rem; font-weight: 900; letter-spacing: 4px; color: var(--secondary); }
+        .pitch { flex: 1; margin: 20px 0; background: #1b4332; border: 3px solid white; border-radius: 12px; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center; box-shadow: inset 0 0 50px rgba(0,0,0,0.5); }
+        .pitch-center-circle { width: 120px; height: 120px; border: 2px solid rgba(255,255,255,0.4); border-radius: 50%; position: absolute; }
+        .ball { width: 18px; height: 18px; background: white; border-radius: 50%; position: absolute; transition: all 0.5s ease; box-shadow: 0 0 10px black; }
+        .commentary-box { background: rgba(11, 15, 25, 0.95); border: 1px solid var(--border); padding: 15px 20px; border-radius: 8px; height: 90px; overflow-y: auto; font-family: monospace; color: #a5b4fc; }
+
+        /* AUDIO PLAYER HIDDEN */
+        #bg-audio { display: none; }
+    </style>
+</head>
+<body>
+
+    <!-- AUDIO ELEMENT FOR LOOPING MUSIC -->
+    <audio id="bg-audio" loop>
+        <source src="https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf756.mp3?filename=lofi-study-112191.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- 1. WELCOME SCREEN -->
+    <div id="welcome-screen" class="screen active">
+        <div class="welcome-content">
+            <h1 class="game-title">FCM Ultra</h1>
+            <p class="game-subtitle">Saison 4 — Édition Ultime & Tactique Avancée</p>
+            <button class="btn" onclick="openConfigScreen()">Commencer une Carrière</button>
+            <button class="btn btn-secondary" onclick="loadSavedGame()">Charger une Partie</button>
+        </div>
+    </div>
+
+    <!-- 2. CONFIG SCREEN -->
+    <div id="config-screen" class="screen">
+        <div class="config-card">
+            <h2 style="margin-bottom: 20px; color: var(--secondary);">Configuration de la Carrière</h2>
+            <div class="form-group">
+                <label>Nom du Manager</label>
+                <input type="text" id="mgr-name" class="form-control" value="Coach Pep">
+            </div>
+            <div class="form-group">
+                <label>Sélectionnez votre Club</label>
+                <select id="team-select" class="form-control">
+                    <option value="Liverpool FC">Liverpool FC (Angleterre)</option>
+                    <option value="Paris Saint-Germain">Paris Saint-Germain (France)</option>
+                    <option value="Real Madrid">Real Madrid (Espagne)</option>
+                    <option value="Bayern Munich">Bayern Munich (Allemagne)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Niveau de Difficulté / Challenge</label>
+                <select id="diff-select" class="form-control">
+                    <option value="normal">Normal (Équipes à 77-78 General)</option>
+                    <option value="hard">Légende (Tactiques Expertes)</option>
+                </select>
+            </div>
+            <button class="btn" style="width: 100%; margin-top: 10px;" onclick="startNewCareer()">Lancer l'Aventure</button>
+        </div>
+    </div>
+
+    <!-- MAIN GAME HUD -->
+    <div id="main-game" style="display:none; height:100vh; flex-direction:column;">
+        <header class="hud-top">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <h2 id="hud-team-name" style="color: var(--primary);">Liverpool FC</h2>
+                <span id="hud-season-date" class="hud-stat-item">📅 Semaine 1 / 38</span>
+            </div>
+            <div class="hud-stats">
+                <div class="hud-stat-item">💰 Budget: <span id="hud-budget">50M €</span></div>
+                <div class="hud-stat-item">⭐ Réputation: <span id="hud-rep">85%</span></div>
+                <div class="hud-stat-item">⚡ Forme Équipe: <span id="hud-form">82%</span></div>
+                <button class="btn btn-secondary" style="padding: 5px 15px; font-size: 0.85rem;" onclick="simulateWeek()">📅 Avancer / Simuler Semaine</button>
+            </div>
+        </header>
+
+        <div class="game-body">
+            <nav class="sidebar">
+                <a class="nav-item active" onclick="switchTab('dashboard', this)">🏠 Tableau de Bord</a>
+                <a class="nav-item" onclick="switchTab('squad', this)">👥 Effectif & Joueurs</a>
+                <a class="nav-item" onclick="switchTab('tactics', this)">📋 Tactique & Maîtrise</a>
+                <a class="nav-item" onclick="switchTab('training', this)">⚽ Entraînement V4.1.2</a>
+                <a class="nav-item" onclick="switchTab('calendar', this)">📅 Calendrier & Matchs</a>
+                <a class="nav-item" onclick="switchTab('analysis', this)">📊 Analyse & Adversaires</a>
+                <a class="nav-item" onclick="switchTab('transfers', this)">🤝 Transferts & Contrats</a>
+                <a class="nav-item" onclick="switchTab('trophies', this)">🏆 Vitrine & Palmarès</a>
+            </nav>
+
+            <main class="content-area">
+                <!-- DASHBOARD -->
+                <div id="tab-dashboard" class="panel active">
+                    <div class="card">
+                        <h2>Bienvenue, Coach !</h2>
+                        <p style="color: #8a99ad; margin-top: 5px;">Votre club est prêt pour la saison. Gérez l'entraînement selon le Manuel Tactique V4.1.2, augmentez la maîtrise de vos tactiques à 100% et partez à la conquête des trophées.</p>
+                    </div>
+                    <div class="grid-2">
+                        <div class="card">
+                            <h3>Prochain Match</h3>
+                            <p id="next-match-info" style="margin-top: 10px; font-size: 1.1rem; font-weight: bold;">Chargement du calendrier...</p>
+                            <button class="btn" style="margin-top: 15px;" onclick="launchNextMatch()">Jouer le Match</button>
+                        </div>
+                        <div class="card">
+                            <h3>État de Forme & Condition</h3>
+                            <p style="margin-top: 10px;">Condition Physique Moyenne : <strong id="team-fitness">92%</strong></p>
+                            <p style="margin-top: 5px;">Maîtrise Tactique Active : <strong id="team-tactical-mastery">15%</strong></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SQUAD (EFFECTIF SANS MARCHÉ) -->
+                <div id="tab-squad" class="panel">
+                    <div class="card">
+                        <h3>Gestion de l'Effectif & État d'Esprit</h3>
+                        <p style="color: #8a99ad; font-size: 0.9rem; margin-bottom: 15px;">Discutez avec vos joueurs, analysez leur moral et leur forme réelle.</p>
+                        <table>
+                            <thead>
+                                <tr><th>Nom</th><th>Poste</th><th>Général</th><th>Forme</th><th>Moral</th><th>Valeur</th><th>Action</th></tr>
+                            </thead>
+                            <tbody id="squad-table-body">
+                                <!-- Rempli dynamiquement -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TACTICS (MAÎTRISE JUSQU'À 100%) -->
+                <div id="tab-tactics" class="panel">
+                    <div class="card">
+                        <h3>Choix de la Tactique Hebdomadaire & Évolution</h3>
+                        <p style="color: #8a99ad; font-size: 0.9rem; margin-bottom: 15px;">Chaque tactique évolue jusqu'à 100%. Les tactiques simples progressent vite, les complexes plus lentement. Une maîtrise à 100% libère la prise de décision autonome des joueurs sur le terrain.</p>
+                        <div class="form-group">
+                            <label>Tactique Principale de la Semaine</label>
+                            <select id="active-tactic" class="form-control" onchange="updateTacticalSelection()">
+                                <option value="3-2-5 Largeur & Supériorité (Simple)">3-2-5 Largeur & Supériorité (Complexité: Faible)</option>
+                                <option value="Bloc Médian Compact & Rest Defense (Moyenne)">Bloc Médian Compact & Rest Defense (Complexité: Moyenne)</option>
+                                <option value="Pressing Haut & Transitions Éclairs (Complexe)">Pressing Haut & Transitions Éclairs (Complexité: Élevée)</option>
+                            </select>
+                        </div>
+                        <div style="margin-top: 20px;">
+                            <p>Niveau de Maîtrise Actuel : <span id="tactic-progress-val" style="color: var(--secondary); font-weight: bold;">15%</span></p>
+                            <div style="background: rgba(255,255,255,0.1); border-radius: 10px; height: 16px; width: 100%; margin-top: 8px; overflow: hidden;">
+                                <div id="tactic-progress-bar" style="background: linear-gradient(90deg, var(--primary), var(--secondary)); width: 15%; height: 100%; transition: width 0.4s;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TRAINING (MANUEL TACTIQUE V4.1.2) -->
+                <div id="tab-training" class="panel">
+                    <div class="card">
+                        <h3>Programme d'Entraînement — Manuel V4.1.2</h3>
+                        <p style="color: #8a99ad; font-size: 0.9rem; margin-bottom: 15px;">Sélectionnez votre type de semaine pour appliquer les séances minutées et booster la forme et la tactique de l'équipe.</p>
+                        <div class="form-group">
+                            <label>Type de Semaine</label>
+                            <select id="training-schedule-type" class="form-control">
+                                <option value="1">Semaine à 1 Match (Standard - 4 Séances)</option>
+                                <option value="2">Semaine à 2 Matchs (Europe + Championnat)</option>
+                            </select>
+                        </div>
+                        <button class="btn" onclick="runTrainingSession()">Lancer la Semaine d'Entraînement</button>
+                        <div id="training-result-box" style="margin-top: 15px; font-family: monospace; color: var(--secondary);"></div>
+                    </div>
+                </div>
+
+                <!-- CALENDAR -->
+                <div id="tab-calendar" class="panel">
+                    <div class="card">
+                        <h3>Calendrier Officiel (Championnat, Coupes & Continentales)</h3>
+                        <table>
+                            <thead>
+                                <tr><th>Jour / Semaine</th><th>Compétition</th><th>Adversaire</th><th>Statut</th></tr>
+                            </thead>
+                            <tbody id="calendar-table-body">
+                                <!-- Rempli dynamiquement -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ANALYSIS -->
+                <div id="tab-analysis" class="panel">
+                    <div class="card">
+                        <h3>Analyse des Adversaires & Conférence de Presse</h3>
+                        <p style="color: #8a99ad; font-size: 0.9rem; margin-bottom: 15px;">Étudiez les points forts, points faibles et stats de votre prochain adversaire.</p>
+                        <div id="opponent-analysis-content">
+                            <h4 style="color: var(--secondary);">Prochain Adversaire : Arsenal FC</h4>
+                            <p style="margin-top: 8px;">Forme actuelle : W-W-D-W-L</p>
+                            <p style="margin-top: 5px;">Point Fort : Jeu de transition rapide et couloirs explosifs.</p>
+                            <p style="margin-top: 5px;">Point Faible : Vulnérable sur les renversements de jeu rapides.</p>
+                        </div>
+                        <hr style="border: 0; border-top: 1px solid var(--border); margin: 20px 0;">
+                        <h4 style="margin-bottom: 10px;">Conférence de Presse d'Avant-Match</h4>
+                        <p style="font-style: italic; color: #a5b4fc;" id="press-question">"Coach, pensez-vous pouvoir l'emporter face à un tel adversaire ?"</p>
+                        <div style="margin-top: 10px; display: flex; gap: 10px;">
+                            <button class="btn" style="padding: 8px 16px; font-size: 0.9rem;" onclick="answerPress(1)">"Nous sommes prêts et tactiquement affûtés."</button>
+                            <button class="btn btn-secondary" style="padding: 8px 16px; font-size: 0.9rem;" onclick="answerPress(2)">"Match difficile, mais notre joueur star fera la différence."</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TRANSFERS & CONTRACTS -->
+                <div id="tab-transfers" class="panel">
+                    <div class="card">
+                        <h3>Marché des Transferts & Négociations Manager</h3>
+                        <p style="color: #8a99ad; font-size: 0.9rem; margin-bottom: 15px;">Plus votre réputation est élevée, plus vous attirez les meilleurs joueurs et recevez des offres de contrats prestigieuses.</p>
+                        <table>
+                            <thead>
+                                <tr><th>Joueur Cible</th><th>Poste</th><th>Général</th><th>Valeur Marchande</th><th>Action</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>Kylian Mbappé</td><td>ATT</td><td>91</td><td>160M €</td><td><button class="btn" style="padding: 6px 12px; font-size: 0.85rem;" onclick="makeOffer('Kylian Mbappé', 160)">Recruter</button></td></tr>
+                                <tr><td>Jude Bellingham</td><td>MIL</td><td>90</td><td>150M €</td><td><button class="btn" style="padding: 6px 12px; font-size: 0.85rem;" onclick="makeOffer('Jude Bellingham', 150)">Recruter</button></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TROPHIES -->
+                <div id="tab-trophies" class="panel">
+                    <div class="card">
+                        <h3>Vitrine des Trophées & Palmarès Individuel</h3>
+                        <p style="color: #8a99ad; font-size: 0.9rem; margin-bottom: 15px;">Historique des titres remportés par le manager, les clubs et la cérémonie annuelle du Ballon d'Or.</p>
+                        <div id="trophy-room-list" style="display: flex; gap: 15px; flex-wrap: wrap; margin-top: 15px;">
+                            <div style="background: rgba(0,0,0,0.4); border: 1px solid var(--secondary); padding: 15px 25px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 2rem;">🏆</div>
+                                <div style="font-weight: bold; margin-top: 5px;">Aucun Trophée pour l'instant</div>
+                                <div style="font-size: 0.8rem; color: #8a99ad;">Gagnez des compétitions pour remplir la vitrine !</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- 3. MATCH SIMULATOR ENGINE WITH DUAL COMMENTATORS -->
+    <div id="match-engine">
+        <div class="match-header">
+            <div>
+                <h3 id="match-team-home" style="color: var(--primary);">Liverpool FC</h3>
+                <span style="font-size: 0.85rem; color: #8a99ad;">Domicile</span>
+            </div>
+            <div id="match-score-display" class="match-scoreboard">0 - 0</div>
+            <div style="text-align: right;">
+                <h3 id="match-team-away" style="color: var(--secondary);">Arsenal FC</h3>
+                <span style="font-size: 0.85rem; color: #8a99ad;">Extérieur</span>
+            </div>
+        </div>
+
+        <div class="pitch">
+            <div class="pitch-center-circle"></div>
+            <div id="match-ball" class="ball" style="top: 50%; left: 50%;"></div>
+        </div>
+
+        <div class="commentary-box" id="commentary-log">
+            [0'] Coup d'envoi donné par l'arbitre ! Les deux équipes se mettent en place selon leurs tactiques.
+        </div>
+    </div>
+
+    <script>
+        // GAME STATE
+        let gameState = {
+            managerName: "Coach Pep",
+            teamName: "Liverpool FC",
+            budget: 50,
+            reputation: 85,
+            teamForm: 82,
+            fitness: 92,
+            tacticalMastery: 15,
+            activeTactic: "3-2-5 Largeur & Supériorité",
+            week: 1,
+            season: 1,
+            trophies: [],
+            squad: [
+                { name: "Alisson Becker", pos: "GB", gen: 89, form: 88, moral: "Heureux", val: "40M €" },
+                { name: "Virgil van Dijk", pos: "DC", gen: 90, form: 91, moral: "Motivé", val: "50M €" },
+                { name: "Trent Alexander-Arnold", pos: "DD", gen: 87, form: 85, moral: "Heureux", val: "70M €" },
+                { name: "Alexis Mac Allister", pos: "MIL", gen: 86, form: 89, moral: "Formidable", val: "65M €" },
+                { name: "Mohamed Salah", pos: "ATT", gen: 90, form: 92, moral: "Exceptionnel", val: "80M €" },
+                { name: "Darwin Núñez", pos: "ATT", gen: 84, form: 80, moral: "Normal", val: "55M €" }
+            ],
+            calendar: [
+                { week: 1, comp: "Premier League", opponent: "Arsenal FC", played: false },
+                { week: 2, comp: "Ligue des Champions", opponent: "AC Milan", played: false },
+                { week: 3, comp: "Premier League", opponent: "Manchester City", played: false },
+                { week: 4, comp: "Coupe Nationale", opponent: "Everton FC", played: false }
+            ]
+        };
+
+        // AUDIO CONTROL & MUSIC
+        const bgAudio = document.getElementById('bg-audio');
+
+        function playBackgroundMusic() {
+            bgAudio.volume = 0.4;
+            bgAudio.play().catch(e => console.log("Audio autoplay prevented by browser:", e));
+        }
+
+        function stopBackgroundMusic() {
+            bgAudio.pause();
+            bgAudio.currentTime = 0;
+        }
+
+        // NAVIGATION & UI
+        function openConfigScreen() {
+            document.getElementById('welcome-screen').classList.remove('active');
+            document.getElementById('config-screen').classList.add('active');
+            playBackgroundMusic();
+        }
+
+        function startNewCareer() {
+            const mName = document.getElementById('mgr-name').value;
+            const tName = document.getElementById('team-select').value;
+            if(mName) gameState.managerName = mName;
+            gameState.teamName = tName;
+
+            document.getElementById('hud-team-name').innerText = gameState.teamName;
+            document.getElementById('config-screen').classList.remove('active');
+            document.getElementById('main-game').style.display = 'flex';
+
+            renderSquad();
+            renderCalendar();
+            updateHUD();
+        }
+
+        function loadSavedGame() {
+            alert("Chargement de la partie sauvegardée réussi !");
+            startNewCareer();
+        }
+
+        function switchTab(tabId, el) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            el.classList.add('active');
+        }
+
+        function updateHUD() {
+            document.getElementById('hud-season-date').innerText = `📅 Semaine ${gameState.week} / 38`;
+            document.getElementById('hud-budget').innerText = gameState.budget + "M €";
+            document.getElementById('hud-rep').innerText = gameState.reputation + "%";
+            document.getElementById('hud-form').innerText = gameState.teamForm + "%";
+            document.getElementById('team-fitness').innerText = gameState.fitness + "%";
+            document.getElementById('tactic-progress-val').innerText = gameState.tacticalMastery + "%";
+            document.getElementById('tactic-progress-bar').style.width = gameState.tacticalMastery + "%";
+
+            // Next match
+            let nextM = gameState.calendar.find(m => !m.played);
+            if(nextM) {
+                document.getElementById('next-match-info').innerText = `${nextM.comp}: ${gameState.teamName} vs ${nextM.opponent} (Semaine ${nextM.week})`;
+            } else {
+                document.getElementById('next-match-info').innerText = "Saison Terminée — Cérémonie du Ballon d'Or !";
+            }
+        }
+
+        function renderSquad() {
+            let html = "";
+            gameState.squad.forEach(p => {
+                html += `<tr>
+                    <td><strong>${p.name}</strong></td>
+                    <td>${p.pos}</td>
+                    <td>${p.gen}</td>
+                    <td>${p.form}%</td>
+                    <td>${p.moral}</td>
+                    <td>${p.val}</td>
+                    <td><button class="btn" style="padding: 4px 10px; font-size: 0.8rem;" onclick="talkToPlayer('${p.name}')">Discuter</button></td>
+                </tr>`;
+            });
+            document.getElementById('squad-table-body').innerHTML = html;
+        }
+
+        function talkToPlayer(playerName) {
+            alert(`Vous avez une discussion constructive avec ${playerName}. Son moral s'améliore et son implication tactique augmente !`);
+            gameState.teamForm = Math.min(100, gameState.teamForm + 2);
+            updateHUD();
+            renderSquad();
+        }
+
+        function updateTacticalSelection() {
+            let sel = document.getElementById('active-tactic').value;
+            gameState.activeTactic = sel;
+            alert(`Tactique définie : ${sel}. L'équipe va l'assimiler à l'entraînement.`);
+        }
+
+        function runTrainingSession() {
+            let schedType = document.getElementById('training-schedule-type').value;
+            // Manuel V4.1.2 application
+            gameState.fitness = Math.min(100, gameState.fitness + 4);
+            gameState.tacticalMastery = Math.min(100, gameState.tacticalMastery + (schedType === "1" ? 15 : 10));
+            gameState.teamForm = Math.min(100, gameState.teamForm + 5);
+
+            let logBox = document.getElementById('training-result-box');
+            logBox.innerHTML = `✅ Semaine d'entraînement V4.1.2 validée avec succès !<br>• Application des mots-clés (LARGEUR, SUPÉRIORITÉ, 3 SECONDES).<br>• Maîtrise tactique actuelle : ${gameState.tacticalMastery}%<br>• Condition physique optimisée à ${gameState.fitness}%.`;
+            updateHUD();
+        }
+
+        function renderCalendar() {
+            let html = "";
+            gameState.calendar.forEach(m => {
+                let statusBadge = m.played ? '<span style="color: #10b981;">Joué</span>' : '<span style="color: var(--secondary);">À jouer</span>';
+                html += `<tr><td>Semaine ${m.week}</td><td>${m.comp}</td><td>${m.opponent}</td><td>${statusBadge}</td></tr>`;
+            });
+            document.getElementById('calendar-table-body').innerHTML = html;
+        }
+
+        function simulateWeek() {
+            gameState.week++;
+            if(gameState.week > 38) {
+                alert("Fin de la saison ! Cérémonie du Ballon d'Or et distribution des trophées.");
+                gameState.trophies.push({ name: "Championnat National / Trophée S4", season: gameState.season });
+                renderTrophies();
+                gameState.week = 1;
+                gameState.season++;
+            }
+            updateHUD();
+        }
+
+        function answerPress(choice) {
+            if(choice === 1) {
+                alert("Conférence réussie : L'équipe est pleinement concentrée et confiante.");
+                gameState.teamForm += 3;
+            } else {
+                alert("Conférence correcte : Pression mise sur les individualités.");
+                gameState.reputation += 1;
+            }
+            updateHUD();
+        }
+
+        function makeOffer(playerName, price) {
+            if(gameState.budget >= price) {
+                gameState.budget -= price;
+                alert(`Offre acceptée ! ${playerName} rejoint votre effectif après une négociation de contrat réussie.`);
+                updateHUD();
+            } else {
+                alert("Budget insuffisant pour recruter ce joueur.");
+            }
+        }
+
+        function renderTrophies() {
+            let container = document.getElementById('trophy-room-list');
+            let html = "";
+            gameState.trophies.forEach(t => {
+                html += `<div style="background: rgba(0,240,255,0.1); border: 1px solid var(--secondary); padding: 15px 25px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 2rem;">🏆</div>
+                    <div style="font-weight: bold; margin-top: 5px;">${t.name}</div>
+                    <div style="font-size: 0.8rem; color: #8a99ad;">Saison ${t.season}</div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        // MATCH ENGINE WITH DUAL COMMENTATORS & MUSIC SWITCH
+        function launchNextMatch() {
+            let nextM = gameState.calendar.find(m => !m.played);
+            if(!nextM) {
+                alert("Plus de matchs prévus pour cette saison.");
+                return;
+            }
+
+            // Arrêt de la musique de fond et lancement du match
+            stopBackgroundMusic();
+
+            document.getElementById('main-game').style.display = 'none';
+            document.getElementById('match-engine').style.display = 'flex';
+            document.getElementById('match-team-home').innerText = gameState.teamName;
+            document.getElementById('match-team-away').innerText = nextM.opponent;
+
+            let homeScore = 0;
+            let awayScore = 0;
+            let minute = 0;
+            let log = document.getElementById('commentary-log');
+            log.innerHTML = `[0'] Coup d'envoi de ${nextM.comp} entre ${gameState.teamName} et ${nextM.opponent} !<br>`;
+
+            // Double commentateurs (Homme & Femme alternés)
+            let maleComments = [
+                "Quelle intensité au milieu de terrain ! Nos joueurs appliquent parfaitement la tactique.",
+                "Superbe interception, la transition offensive est instantanée.",
+                "Frappe lointaine captée sans problème par le gardien adverse."
+            ];
+            let femaleComments = [
+                "L'intelligence de placement des joueurs fait toute la différence aujourd'hui !",
+                "Quelle magnifique inspiration technique dans le demi-espace !",
+                "Le bloc défensif est bien compact, l'adversaire étouffe."
+            ];
+
+            let matchInterval = setInterval(() => {
+                minute += 5;
+                if(minute > 90) {
+                    clearInterval(matchInterval);
+                    log.innerHTML += `<br><strong>[90'] C'est terminé ! Score final : ${homeScore} - ${awayScore}</strong><br>`;
+                    nextM.played = true;
+                    setTimeout(() => {
+                        document.getElementById('match-engine').style.display = 'none';
+                        document.getElementById('main-game').style.display = 'flex';
+                        playBackgroundMusic(); // Reprise de la musique
+                        updateHUD();
+                        renderCalendar();
+                    }, 4000);
+                    return;
+                }
+
+                // Animation du ballon sur la pelouse
+                let ball = document.getElementById('match-ball');
+                ball.style.top = (20 + Math.random() * 60) + "%";
+                ball.style.left = (10 + Math.random() * 80) + "%";
+
+                if(Math.random() < 0.35) {
+                    if(Math.random() > 0.5) {
+                        homeScore++;
+                        log.innerHTML += `[${minute}'] ⚽ <strong>BUUUT pour ${gameState.teamName} !</strong> (${maleComments[Math.floor(Math.random()*maleComments.length)]})<br>`;
+                    } else {
+                        awayScore++;
+                        log.innerHTML += `[${minute}'] ⚽ But pour ${nextM.opponent}. (${femaleComments[Math.floor(Math.random()*femaleComments.length)]})<br>`;
+                    }
+                    document.getElementById('match-score-display').innerText = `${homeScore} - ${awayScore}`;
+                }
+                log.scrollTop = log.scrollHeight;
+            }, 800);
+        }
+    </script>
+</body>
+</html>
