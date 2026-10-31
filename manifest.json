@@ -1,0 +1,9 @@
+{
+  "name":"FCM Ultra 5.0",
+  "short_name":"FCM Ultra",
+  "start_url":"./",
+  "display":"standalone",
+  "background_color":"#070912",
+  "theme_color":"#e51d4f",
+  "lang":"fr-FR"
+}
